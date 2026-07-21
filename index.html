@@ -378,7 +378,7 @@
 <body>
   <div class="wrap">
     <div class="topbar">
-      <div class="version">t26072101</div>
+      <div class="version">t26072102</div>
     </div>
 
     <h1>바카라 마틴 메이커</h1>
@@ -389,15 +389,15 @@
       <div class="grid">
         <label class="field">
           <span class="label">시작금액</span>
-          <input id="startAmountInput" class="input" type="number" inputmode="numeric" min="1" placeholder="예: 100" />
+          <input id="startAmountInput" class="input" type="number" inputmode="numeric" min="0" placeholder="자동 계산 가능" />
         </label>
         <label class="field">
-          <span class="label">1마틴 금액</span>
-          <input id="baseBetInput" class="input" type="number" inputmode="numeric" min="1" placeholder="예: 1" />
-        </label>
-        <label class="field full">
           <span class="label">마틴횟수</span>
           <input id="martinLimitInput" class="input" type="number" inputmode="numeric" min="1" placeholder="예: 4" />
+        </label>
+        <label class="field full">
+          <span class="label">1마틴 금액</span>
+          <input id="baseBetInput" class="input" type="number" inputmode="numeric" min="0" placeholder="자동 계산 가능" />
         </label>
       </div>
       <div class="btn-row">
@@ -405,7 +405,7 @@
         <button id="winBtn" class="btn win" disabled>승리</button>
         <button id="lossBtn" class="btn loss" disabled>패배</button>
       </div>
-      <div class="summary" id="summaryText">시작 전입니다.</div>
+      <div class="summary" id="summaryText">시작 전입니다. (시작금액+마틴횟수 → 1마틴 자동 / 1마틴+마틴횟수 → 시작금액 자동)</div>
     </section>
 
     <section class="card">
@@ -498,6 +498,11 @@
       history: []
     };
 
+    const auto = {
+      lastEdited: null, // "start" | "base"
+      isUpdating: false
+    };
+
     function formatMoney(value) {
       return new Intl.NumberFormat("ko-KR").format(value);
     }
@@ -506,10 +511,76 @@
       return baseBet * ((2 ** martinRound) - 1);
     }
 
+    function getRequiredStartAmount(baseBet, martinLimit) {
+      // 합계: (2^2-1) ... (2^m-1) = (2^(m+1) - 2) - m = 2^(m+1) - m - 2
+      const multiplier = (2 ** (martinLimit + 1)) - martinLimit - 2;
+      return baseBet * multiplier;
+    }
+
+    function getBaseBetFromStartAmount(startAmount, martinLimit) {
+      const divisor = (2 ** (martinLimit + 1)) - martinLimit - 2;
+      if (divisor <= 0) return null;
+      return startAmount / divisor;
+    }
+
     function getRandomSide() {
       const buf = new Uint32Array(1);
       crypto.getRandomValues(buf);
       return (buf[0] & 1) === 0 ? "플레이어" : "뱅커";
+    }
+
+    function getNum(inputEl) {
+      const raw = String(inputEl.value || "").trim();
+      if (!raw) return null;
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function setValueSafely(inputEl, value) {
+      inputEl.value = value === null ? "" : String(value);
+    }
+
+    function recalcAutoFields(trigger) {
+      if (auto.isUpdating) return;
+      auto.isUpdating = true;
+      try {
+        const m = getNum(martinLimitInput);
+        const s = getNum(startAmountInput);
+        const b = getNum(baseBetInput);
+
+        if (!m || m <= 0) return;
+
+        // 1) 시작금액 + 마틴횟수 -> 1마틴 자동
+        // 2) 1마틴 + 마틴횟수 -> 시작금액 자동
+        // 둘 다 입력된 경우: 마지막 수정한 쪽을 기준으로 반대쪽을 맞춤
+        if ((s !== null && s > 0) && (b === null || b === 0)) {
+          const bb = getBaseBetFromStartAmount(s, m);
+          if (bb !== null) {
+            const bbRounded = Math.round(bb);
+            setValueSafely(baseBetInput, bbRounded);
+          }
+          return;
+        }
+
+        if ((b !== null && b > 0) && (s === null || s === 0)) {
+          const required = getRequiredStartAmount(b, m);
+          setValueSafely(startAmountInput, required);
+          return;
+        }
+
+        if ((s !== null && s > 0) && (b !== null && b > 0)) {
+          // 둘 다 값이 있으면, 마지막 수정 값을 기준으로 다른 쪽을 재계산
+          if (auto.lastEdited === "start" && trigger !== "base") {
+            const bb = getBaseBetFromStartAmount(s, m);
+            if (bb !== null) setValueSafely(baseBetInput, Math.round(bb));
+          } else if (auto.lastEdited === "base" && trigger !== "start") {
+            const required = getRequiredStartAmount(b, m);
+            setValueSafely(startAmountInput, required);
+          }
+        }
+      } finally {
+        auto.isUpdating = false;
+      }
     }
 
     function setDecisionButtons(enabled) {
@@ -648,6 +719,9 @@
     }
 
     function startGame() {
+      // 자동계산 반영 후 시작
+      recalcAutoFields("start");
+
       const startAmount = Number(String(startAmountInput.value || "").trim());
       const baseBet = Number(String(baseBetInput.value || "").trim());
       const martinLimit = Number(String(martinLimitInput.value || "").trim());
@@ -691,6 +765,18 @@
     startBtn.addEventListener("click", startGame);
     winBtn.addEventListener("click", () => recordRound("승리"));
     lossBtn.addEventListener("click", () => recordRound("패배"));
+
+    startAmountInput.addEventListener("input", () => {
+      auto.lastEdited = "start";
+      recalcAutoFields("start");
+    });
+    baseBetInput.addEventListener("input", () => {
+      auto.lastEdited = "base";
+      recalcAutoFields("base");
+    });
+    martinLimitInput.addEventListener("input", () => {
+      recalcAutoFields("martin");
+    });
 
     [startAmountInput, baseBetInput, martinLimitInput].forEach(input => {
       input.addEventListener("keydown", (e) => {
