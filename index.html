@@ -80,6 +80,12 @@
       backdrop-filter: blur(10px);
       margin-bottom: 14px;
     }
+    .page.hidden{
+      display:none;
+    }
+    .hidden{
+      display:none !important;
+    }
     .section-title{
       margin: 0 0 12px;
       font-size: 15px;
@@ -116,7 +122,7 @@
     .input::placeholder{ color: var(--text-hint); }
     .btn-row{
       display:grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 10px;
       margin-top: 12px;
     }
@@ -183,6 +189,36 @@
     }
     .stat-value.player{ color: var(--player); }
     .stat-value.banker{ color: var(--banker); }
+    .game-stack{
+      display:flex;
+      flex-direction:column;
+      gap: 14px;
+    }
+    .game-stat{
+      border-radius: 18px;
+      background: rgba(20,33,61,.9);
+      border: 1px solid rgba(255,255,255,.08);
+      padding: 14px;
+    }
+    .game-stat-title{
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+    .game-stat-value{
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -.3px;
+    }
+    .game-actions{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .game-reset{
+      margin-top: 4px;
+    }
     .shuffle-box{
       position: relative;
       height: 188px;
@@ -277,7 +313,7 @@
       line-height: 1.45;
     }
     .summary{
-      margin: 12px 0 0;
+      margin: 0;
       font-size: 14px;
       color: var(--text-sub);
       font-weight: 700;
@@ -383,7 +419,7 @@
     }
     @media (max-width: 430px){
       .grid, .stats, .end-grid{ grid-template-columns: 1fr; }
-      .btn-row, .decision-row{ grid-template-columns: 1fr; }
+      .btn-row, .decision-row, .game-actions{ grid-template-columns: 1fr; }
       .side-badge{ min-width: 100%; }
       .history-grid{ grid-template-columns: 1fr; }
       .deck-card.left{ left: calc(50% - 82px); }
@@ -394,65 +430,80 @@
 <body>
   <div class="wrap">
     <div class="topbar">
-      <div class="version">t26072103</div>
+      <div class="version">t26072104</div>
     </div>
 
     <h1>바카라 마틴 메이커</h1>
-    <p class="desc">시작금액, 1마틴 금액, 마틴 횟수를 입력하고 시작하면 카드 셔플 뒤에 플레이어 또는 뱅커가 랜덤으로 나옵니다. 승리와 패배를 누르면서 마틴 진행을 이어가고, 종료 시 전체 결과를 한 번에 확인할 수 있습니다.</p>
+    <p class="desc">1페이지에서 금액을 세팅하고 시작하면 2페이지로 넘어가 게임이 진행됩니다. 초기화하면 다시 설정 페이지로 돌아갑니다.</p>
 
-    <section class="card">
-      <h2 class="section-title">기본 설정</h2>
-      <div class="grid">
-        <label class="field">
-          <span class="label">시작금액</span>
-          <input id="startAmountInput" class="input" type="number" inputmode="numeric" min="0" placeholder="자동 계산 가능" />
-        </label>
-        <label class="field">
-          <span class="label">마틴횟수</span>
-          <input id="martinLimitInput" class="input" type="number" inputmode="numeric" min="1" placeholder="예: 4" />
-        </label>
-        <label class="field full">
-          <span class="label">1마틴 금액</span>
-          <input id="baseBetInput" class="input" type="number" inputmode="numeric" min="0" placeholder="자동 계산 가능" />
-        </label>
-      </div>
-      <div class="btn-row">
-        <button id="startBtn" class="btn primary">시작</button>
-        <button id="resetBtn" class="btn secondary">초기화</button>
-      </div>
-      <div class="decision-row">
-        <button id="winBtn" class="btn win" disabled>승리</button>
-        <button id="lossBtn" class="btn loss" disabled>패배</button>
-        <button id="gameOverBtn" class="btn gameover hidden">게임종료</button>
-      </div>
-      <div class="summary" id="summaryText">시작 전입니다. (시작금액+마틴횟수 → 1마틴 자동 / 1마틴+마틴횟수 → 시작금액 자동)</div>
-    </section>
-
-    <section class="card">
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-label">현재 마틴 회차 / 배팅금액</div>
-          <div class="stat-value" id="betInfo">-</div>
+    <div id="setupPage" class="page">
+      <section class="card">
+        <h2 class="section-title">1p 금액 세팅</h2>
+        <div class="grid">
+          <label class="field">
+            <span class="label">시작금액</span>
+            <input id="startAmountInput" class="input" type="number" inputmode="numeric" min="0" placeholder="자동 계산 가능" />
+          </label>
+          <label class="field">
+            <span class="label">마틴횟수</span>
+            <input id="martinLimitInput" class="input" type="number" inputmode="numeric" min="1" placeholder="예: 4" />
+          </label>
+          <label class="field full">
+            <span class="label">1마틴 금액</span>
+            <input id="baseBetInput" class="input" type="number" inputmode="numeric" min="0" placeholder="자동 계산 가능" />
+          </label>
         </div>
-        <div class="stat">
-          <div class="stat-label">현재 총 금액 / 총 수익</div>
-          <div class="stat-value" id="moneyInfo">-</div>
+        <div class="btn-row">
+          <button id="startBtn" class="btn primary">게임 시작</button>
         </div>
-      </div>
+        <div class="summary" id="summaryText">시작 전입니다. (시작금액+마틴횟수 → 1마틴 자동 / 1마틴+마틴횟수 → 시작금액 자동)</div>
+      </section>
+    </div>
 
-      <div id="shuffleBox" class="shuffle-box">
-        <div class="table-glow"></div>
-        <div class="deck-card left"></div>
-        <div class="deck-card right"></div>
-        <div id="resultSide" class="result-side">
-          <div id="sideBadge" class="side-badge">대기중</div>
-          <div class="side-meta" id="sideMeta">시작 버튼을 눌러 첫 판을 생성하세요.</div>
+    <div id="gamePage" class="page hidden">
+      <section class="card">
+        <h2 class="section-title">2p 게임</h2>
+        <div class="game-stack">
+          <div class="game-stat">
+            <div class="game-stat-title">현재판</div>
+            <div class="game-stat-value" id="roundInfo">-</div>
+          </div>
+          <div class="game-stat">
+            <div class="game-stat-title">배팅해야될금액</div>
+            <div class="game-stat-value" id="betInfo">-</div>
+          </div>
+
+          <div id="shuffleBox" class="shuffle-box">
+            <div class="table-glow"></div>
+            <div class="deck-card left"></div>
+            <div class="deck-card right"></div>
+            <div id="resultSide" class="result-side">
+              <div id="sideBadge" class="side-badge">대기중</div>
+              <div class="side-meta" id="sideMeta">시작 버튼을 눌러 첫 판을 생성하세요.</div>
+            </div>
+          </div>
+
+          <div class="game-actions">
+            <button id="winBtn" class="btn win" disabled>승리</button>
+            <button id="lossBtn" class="btn loss" disabled>패배</button>
+            <button id="gameOverBtn" class="btn gameover hidden">게임종료</button>
+          </div>
+
+          <div class="game-reset">
+            <button id="resetBtn" class="btn secondary">초기화</button>
+          </div>
+
+          <div class="game-stat">
+            <div class="game-stat-title">총금액</div>
+            <div class="game-stat-value" id="moneyInfo">-</div>
+          </div>
+
+          <div class="summary" id="gameSummaryText">게임 대기 중입니다.</div>
         </div>
-      </div>
-      <div class="hint">현재 HTML 배포 버전이라 파이썬 대신 브라우저의 <code>crypto.getRandomValues</code>를 사용해 랜덤을 생성합니다. 승리와 패배 모두 해당 회차 실제 배팅금액 기준으로 총수익과 총금액이 반영됩니다.</div>
-    </section>
+      </section>
+    </div>
 
-    <section class="card">
+    <section class="card hidden">
       <h2 class="section-title">진행 기록</h2>
       <div id="history" class="history empty">아직 진행 기록이 없습니다.</div>
       <div id="endBox" class="end-box hidden">
@@ -485,12 +536,16 @@
     const startAmountInput = $("startAmountInput");
     const baseBetInput = $("baseBetInput");
     const martinLimitInput = $("martinLimitInput");
+    const setupPage = $("setupPage");
+    const gamePage = $("gamePage");
     const startBtn = $("startBtn");
     const resetBtn = $("resetBtn");
     const winBtn = $("winBtn");
     const lossBtn = $("lossBtn");
     const gameOverBtn = $("gameOverBtn");
     const summaryText = $("summaryText");
+    const gameSummaryText = $("gameSummaryText");
+    const roundInfo = $("roundInfo");
     const betInfo = $("betInfo");
     const moneyInfo = $("moneyInfo");
     const shuffleBox = $("shuffleBox");
@@ -610,6 +665,11 @@
       lossBtn.disabled = !enabled;
     }
 
+    function showPage(page) {
+      setupPage.classList.toggle("hidden", page !== "setup");
+      gamePage.classList.toggle("hidden", page !== "game");
+    }
+
     function setGameOverButton(visible) {
       gameOverBtn.classList.toggle("hidden", !visible);
       winBtn.classList.toggle("hidden", visible);
@@ -617,12 +677,14 @@
     }
 
     function updateStatus() {
-      const martinText = state.started
-        ? `${state.currentMartinRound}마틴 / ${formatMoney(state.currentBet)}`
+      roundInfo.textContent = state.started && state.roundNumber > 0
+        ? `${state.roundNumber}판`
         : "-";
-      betInfo.textContent = martinText;
+      betInfo.textContent = state.started
+        ? `${formatMoney(state.currentBet)}`
+        : "-";
       moneyInfo.textContent = state.started
-        ? `${formatMoney(state.currentAmount)} / ${state.totalProfit >= 0 ? "+" : ""}${formatMoney(state.totalProfit)}`
+        ? `${formatMoney(state.currentAmount)}`
         : "-";
     }
 
@@ -671,6 +733,7 @@
       setGameOverButton(showGameOverButton);
       startBtn.disabled = false;
       summaryText.textContent = reason;
+      gameSummaryText.textContent = reason;
       endRounds.textContent = `${state.roundNumber}판`;
       endStartAmount.textContent = formatMoney(state.startAmount);
       endProfit.textContent = `${state.totalProfit >= 0 ? "+" : ""}${formatMoney(state.totalProfit)}`;
@@ -698,8 +761,10 @@
         return;
       }
 
+      roundInfo.textContent = `${nextRound}판`;
+      betInfo.textContent = `${formatMoney(nextBet)}`;
       summaryText.textContent = `${nextRound}판 생성 중... 카드 셔플 후 결과가 공개됩니다.`;
-      betInfo.textContent = `${state.currentMartinRound}마틴 / ${formatMoney(nextBet)}`;
+      gameSummaryText.textContent = `${nextRound}판 생성 중... 카드 셔플 후 결과가 공개됩니다.`;
 
       window.setTimeout(() => {
         shuffleBox.classList.remove("active");
@@ -709,6 +774,7 @@
         state.awaitingDecision = true;
         showResult(state.currentSide, state.roundNumber, state.currentMartinRound, state.currentBet);
         summaryText.textContent = `${state.roundNumber}판 결과가 나왔습니다. 승리 또는 패배를 선택하세요.`;
+        gameSummaryText.textContent = `${state.roundNumber}판 결과가 나왔습니다. 승리 또는 패배를 선택하세요.`;
         updateStatus();
         setDecisionButtons(true);
       }, 500);
@@ -741,6 +807,7 @@
 
       if (result === "승리") {
         summaryText.textContent = `${state.roundNumber}판 승리 처리 완료. 다음 판은 1마틴으로 다시 시작합니다.`;
+        gameSummaryText.textContent = `${state.roundNumber}판 승리 처리 완료. 다음 판은 1마틴으로 다시 시작합니다.`;
         state.currentMartinRound = 1;
       } else if (state.currentMartinRound >= state.martinLimit) {
         finishGame(`진행 종료. ${state.martinLimit}마틴까지 모두 패배했습니다.`, true);
@@ -748,6 +815,7 @@
       } else {
         state.currentMartinRound += 1;
         summaryText.textContent = `${state.roundNumber}판 패배 처리 완료. 다음 판은 ${state.currentMartinRound}마틴으로 진행합니다.`;
+        gameSummaryText.textContent = `${state.roundNumber}판 패배 처리 완료. 다음 판은 ${state.currentMartinRound}마틴으로 진행합니다.`;
       }
 
       updateStatus();
@@ -781,6 +849,8 @@
       setGameOverButton(false);
       setIdleMessage("시작 버튼을 눌러 첫 판을 생성하세요.");
       summaryText.textContent = "시작 전입니다. (시작금액+마틴횟수 → 1마틴 자동 / 1마틴+마틴횟수 → 시작금액 자동)";
+      gameSummaryText.textContent = "게임 대기 중입니다.";
+      showPage("setup");
       updateStatus();
     }
 
@@ -829,6 +899,7 @@
       startBtn.disabled = true;
       setDecisionButtons(false);
       setGameOverButton(false);
+      showPage("game");
       updateStatus();
       requestNextRound();
     }
@@ -861,6 +932,7 @@
 
     setIdleMessage("시작 버튼을 눌러 첫 판을 생성하세요.");
     setGameOverButton(false);
+    showPage("setup");
     updateStatus();
   </script>
 </body>
