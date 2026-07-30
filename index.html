@@ -200,6 +200,15 @@
       border: 1px solid rgba(255,255,255,.08);
       padding: 14px;
     }
+    .game-stat-row{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      align-items:center;
+    }
+    .game-stat-split{
+      min-width: 0;
+    }
     .game-stat-title{
       font-size: 12px;
       color: var(--text-sub);
@@ -430,7 +439,7 @@
 <body>
   <div class="wrap">
     <div class="topbar">
-      <div class="version">t26072105</div>
+      <div class="version">t26072106</div>
     </div>
 
     <h1>바카라 마틴 메이커</h1>
@@ -465,12 +474,16 @@
         <h2 class="section-title">2p 게임</h2>
         <div class="game-stack">
           <div class="game-stat">
-            <div class="game-stat-title">현재판</div>
-            <div class="game-stat-value" id="roundInfo">-</div>
-          </div>
-          <div class="game-stat">
-            <div class="game-stat-title">배팅해야될금액</div>
-            <div class="game-stat-value" id="betInfo">-</div>
+            <div class="game-stat-row">
+              <div class="game-stat-split">
+                <div class="game-stat-title">현재판</div>
+                <div class="game-stat-value" id="roundInfo">-</div>
+              </div>
+              <div class="game-stat-split">
+                <div class="game-stat-title">배팅금액</div>
+                <div class="game-stat-value" id="betInfo">-</div>
+              </div>
+            </div>
           </div>
 
           <div id="shuffleBox" class="shuffle-box">
