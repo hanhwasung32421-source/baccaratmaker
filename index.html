@@ -473,15 +473,19 @@
             <span class="label">1마틴 금액</span>
             <input id="baseBetInput" class="input" type="number" inputmode="numeric" min="0" placeholder="" autocomplete="off" />
           </label>
-          <label class="field full">
+          <label class="field">
             <span class="label">시작금액</span>
             <input id="startAmountInput" class="input" type="number" inputmode="numeric" min="0" placeholder="자동 계산 가능" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span class="label">목표금액</span>
+            <input id="targetAmountInput" class="input" type="number" inputmode="numeric" min="0" placeholder="자동 계산 가능" autocomplete="off" />
           </label>
         </div>
         <div class="btn-row">
           <button id="startBtn" class="btn primary">게임 시작</button>
         </div>
-        <div class="summary" id="summaryText">시작 전입니다. (시작금액+마틴횟수 → 1마틴 자동 / 1마틴+마틴횟수 → 시작금액 자동)</div>
+        <div class="summary" id="summaryText">시작 전입니다. (시작금액+마틴횟수 → 1마틴 자동 / 1마틴+마틴횟수 → 시작금액 자동 / 목표금액 기본값 = 시작금액 + 1마틴금액×10)</div>
       </section>
     </div>
 
@@ -563,7 +567,7 @@
 
   <script>
     // 수정할 때마다 이 값을 그날 날짜(YYYY-MM-DD)와 버전(2부터 시작, 같은 날 재수정 시 +1)으로 갱신할 것.
-    const LAST_EDIT = { date: "2026-09-04", version: 3 };
+    const LAST_EDIT = { date: "2026-09-04", version: 4 };
 
     function renderVersionBadge() {
       const today = new Date();
@@ -581,6 +585,7 @@
     const startAmountInput = $("startAmountInput");
     const baseBetInput = $("baseBetInput");
     const martinLimitInput = $("martinLimitInput");
+    const targetAmountInput = $("targetAmountInput");
     const setupPage = $("setupPage");
     const gamePage = $("gamePage");
     const startBtn = $("startBtn");
@@ -612,6 +617,7 @@
       awaitingDecision: false,
       roundNumber: 0,
       startAmount: 0,
+      targetAmount: 0,
       currentAmount: 0,
       totalProfit: 0,
       baseBet: 0,
@@ -624,7 +630,8 @@
 
     const auto = {
       lastEdited: null, // "start" | "base"
-      isUpdating: false
+      isUpdating: false,
+      targetEdited: false
     };
 
     function formatMoney(value) {
@@ -662,6 +669,18 @@
 
     function setValueSafely(inputEl, value) {
       inputEl.value = value === null ? "" : String(value);
+    }
+
+    function getTargetDefault(startAmount, baseBet) {
+      return startAmount + (baseBet * 10);
+    }
+
+    function updateTargetDefault() {
+      if (auto.targetEdited) return;
+      const s = getNum(startAmountInput);
+      const b = getNum(baseBetInput);
+      if (s === null || s <= 0 || b === null || b <= 0) return;
+      setValueSafely(targetAmountInput, getTargetDefault(s, b));
     }
 
     function recalcAutoFields(trigger) {
@@ -703,6 +722,7 @@
           }
         }
       } finally {
+        updateTargetDefault();
         auto.isUpdating = false;
       }
     }
@@ -796,6 +816,11 @@
 
     function requestNextRound() {
       if (state.finished) return;
+
+      if (state.targetAmount > 0 && state.currentAmount >= state.targetAmount) {
+        finishGame(`진행 종료. 목표금액 ${formatMoney(state.targetAmount)} 이상을 달성했습니다.`, true);
+        return;
+      }
 
       state.awaitingDecision = false;
       setDecisionButtons(false);
@@ -902,6 +927,7 @@
       state.awaitingDecision = false;
       state.roundNumber = 0;
       state.startAmount = 0;
+      state.targetAmount = 0;
       state.currentAmount = 0;
       state.totalProfit = 0;
       state.baseBet = 0;
@@ -914,6 +940,8 @@
       startAmountInput.value = "";
       baseBetInput.value = "";
       martinLimitInput.value = "";
+      targetAmountInput.value = "";
+      auto.targetEdited = false;
 
       history.className = "history empty";
       history.innerHTML = "아직 진행 기록이 없습니다.";
@@ -922,7 +950,7 @@
       setDecisionButtons(false);
       setGameOverButton(false);
       setIdleMessage("시작 버튼을 눌러 첫 판을 생성하세요.");
-      summaryText.textContent = "시작 전입니다. (시작금액+마틴횟수 → 1마틴 자동 / 1마틴+마틴횟수 → 시작금액 자동)";
+      summaryText.textContent = "시작 전입니다. (시작금액+마틴횟수 → 1마틴 자동 / 1마틴+마틴횟수 → 시작금액 자동 / 목표금액 기본값 = 시작금액 + 1마틴금액×10)";
       gameSummaryText.textContent = "게임 대기 중입니다.";
       showPage("setup");
       updateStatus();
@@ -935,6 +963,8 @@
       const startAmount = Number(String(startAmountInput.value || "").trim());
       const baseBet = Number(String(baseBetInput.value || "").trim());
       const martinLimit = Number(String(martinLimitInput.value || "").trim());
+      const targetAmountRaw = String(targetAmountInput.value || "").trim();
+      const targetAmount = targetAmountRaw ? Number(targetAmountRaw) : null;
 
       if (!Number.isFinite(startAmount) || startAmount <= 0) {
         alert("시작금액은 1 이상으로 입력하세요.");
@@ -952,12 +982,17 @@
         alert("시작금액이 1마틴 배팅금액보다 작습니다.");
         return;
       }
+      if (targetAmount !== null && (!Number.isFinite(targetAmount) || targetAmount <= startAmount)) {
+        alert("목표금액은 시작금액보다 큰 값으로 입력하세요.");
+        return;
+      }
 
       state.started = true;
       state.finished = false;
       state.awaitingDecision = false;
       state.roundNumber = 0;
       state.startAmount = startAmount;
+      state.targetAmount = targetAmount || 0;
       state.currentAmount = startAmount;
       state.totalProfit = 0;
       state.baseBet = baseBet;
@@ -997,8 +1032,11 @@
     martinLimitInput.addEventListener("input", () => {
       recalcAutoFields("martin");
     });
+    targetAmountInput.addEventListener("input", () => {
+      auto.targetEdited = true;
+    });
 
-    [startAmountInput, baseBetInput, martinLimitInput].forEach(input => {
+    [startAmountInput, baseBetInput, martinLimitInput, targetAmountInput].forEach(input => {
       input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           if (!state.started || state.finished) startGame();
