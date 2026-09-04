@@ -150,6 +150,9 @@
     .btn.loss{
       background: linear-gradient(90deg, #d74848, #ff7b7b);
     }
+    .btn.tie{
+      background: linear-gradient(90deg, #d4a017, #ffd85e);
+    }
     .btn.secondary{
       background: linear-gradient(90deg, #4a5b86, #6b7da8);
     }
@@ -222,7 +225,7 @@
     }
     .game-actions{
       display:grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 10px;
     }
     .game-reset{
@@ -374,6 +377,10 @@
       color: var(--loss);
       background: rgba(255,123,123,.12);
     }
+    .history-status.tie{
+      color: var(--accent1);
+      background: rgba(255,208,0,.14);
+    }
     .history-grid{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -439,7 +446,7 @@
 <body>
   <div class="wrap">
     <div class="topbar">
-      <div class="version">2026년 7월 30일 - 1</div>
+      <div class="version" id="versionBadge"></div>
     </div>
 
     <h1>바카라 마틴 메이커</h1>
@@ -498,6 +505,7 @@
 
           <div class="game-actions">
             <button id="winBtn" class="btn win" disabled>승리</button>
+            <button id="tieBtn" class="btn tie" disabled>TIE</button>
             <button id="lossBtn" class="btn loss" disabled>패배</button>
             <button id="gameOverBtn" class="btn gameover hidden">게임종료</button>
           </div>
@@ -544,6 +552,20 @@
   </div>
 
   <script>
+    // 수정할 때마다 이 값을 그날 날짜(YYYY-MM-DD)와 버전(2부터 시작, 같은 날 재수정 시 +1)으로 갱신할 것.
+    const LAST_EDIT = { date: "2026-09-04", version: 2 };
+
+    function renderVersionBadge() {
+      const today = new Date();
+      const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const version = todayKey === LAST_EDIT.date ? LAST_EDIT.version : 1;
+      const badge = document.getElementById("versionBadge");
+      if (badge) {
+        badge.textContent = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일 - 버전${version}`;
+      }
+    }
+    renderVersionBadge();
+
     const $ = (id) => document.getElementById(id);
 
     const startAmountInput = $("startAmountInput");
@@ -554,6 +576,7 @@
     const startBtn = $("startBtn");
     const resetBtn = $("resetBtn");
     const winBtn = $("winBtn");
+    const tieBtn = $("tieBtn");
     const lossBtn = $("lossBtn");
     const gameOverBtn = $("gameOverBtn");
     const summaryText = $("summaryText");
@@ -675,6 +698,7 @@
 
     function setDecisionButtons(enabled) {
       winBtn.disabled = !enabled;
+      tieBtn.disabled = !enabled;
       lossBtn.disabled = !enabled;
     }
 
@@ -686,6 +710,7 @@
     function setGameOverButton(visible) {
       gameOverBtn.classList.toggle("hidden", !visible);
       winBtn.classList.toggle("hidden", visible);
+      tieBtn.classList.toggle("hidden", visible);
       lossBtn.classList.toggle("hidden", visible);
     }
 
@@ -713,7 +738,7 @@
         <div class="history-item">
           <div class="history-top">
             <div class="history-round">${item.round}판 · ${item.martinRound}마틴</div>
-            <div class="history-status ${item.result === "승리" ? "win" : "loss"}">${item.result}</div>
+            <div class="history-status ${item.result === "승리" ? "win" : item.result === "TIE" ? "tie" : "loss"}">${item.result}</div>
           </div>
           <div class="history-grid">
             <div>타겟: <strong class="${item.side === "플레이어" ? "player" : "banker"}">${item.side}</strong></div>
@@ -795,6 +820,26 @@
 
     function recordRound(result) {
       if (!state.awaitingDecision || state.finished) return;
+
+      if (result === "TIE") {
+        state.history.unshift({
+          round: state.roundNumber,
+          martinRound: state.currentMartinRound,
+          side: state.currentSide,
+          bet: state.currentBet,
+          delta: 0,
+          totalAmount: state.currentAmount,
+          result
+        });
+        renderHistory();
+
+        summaryText.textContent = `${state.roundNumber}판 TIE 처리 완료. 동일한 배팅금액으로 다음 판을 진행합니다.`;
+        gameSummaryText.textContent = `${state.roundNumber}판 TIE 처리 완료. 동일한 배팅금액으로 다음 판을 진행합니다.`;
+
+        updateStatus();
+        requestNextRound();
+        return;
+      }
 
       let delta = 0;
       if (result === "승리") {
@@ -920,6 +965,7 @@
     startBtn.addEventListener("click", startGame);
     resetBtn.addEventListener("click", resetGame);
     winBtn.addEventListener("click", () => recordRound("승리"));
+    tieBtn.addEventListener("click", () => recordRound("TIE"));
     lossBtn.addEventListener("click", () => recordRound("패배"));
     gameOverBtn.addEventListener("click", resetGame);
 
