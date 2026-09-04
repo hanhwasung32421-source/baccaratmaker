@@ -153,6 +153,10 @@
     .btn.tie{
       background: linear-gradient(90deg, #d4a017, #ffd85e);
     }
+    .btn.super6{
+      background: linear-gradient(90deg, #00b8a9, #4fd8c9);
+      grid-column: 2;
+    }
     .btn.secondary{
       background: linear-gradient(90deg, #4a5b86, #6b7da8);
     }
@@ -381,6 +385,10 @@
       color: var(--accent1);
       background: rgba(255,208,0,.14);
     }
+    .history-status.super6{
+      color: #4fd8c9;
+      background: rgba(0,184,169,.14);
+    }
     .history-grid{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -436,6 +444,7 @@
     @media (max-width: 430px){
       .grid, .stats, .end-grid{ grid-template-columns: 1fr; }
       .btn-row, .decision-row, .game-actions{ grid-template-columns: 1fr; }
+      .btn.super6{ grid-column: auto; }
       .side-badge{ min-width: 100%; }
       .history-grid{ grid-template-columns: 1fr; }
       .deck-card.left{ left: calc(50% - 82px); }
@@ -507,6 +516,7 @@
             <button id="winBtn" class="btn win" disabled>승리</button>
             <button id="tieBtn" class="btn tie" disabled>TIE</button>
             <button id="lossBtn" class="btn loss" disabled>패배</button>
+            <button id="super6Btn" class="btn super6" disabled>SUPER6</button>
             <button id="gameOverBtn" class="btn gameover hidden">게임종료</button>
           </div>
 
@@ -553,7 +563,7 @@
 
   <script>
     // 수정할 때마다 이 값을 그날 날짜(YYYY-MM-DD)와 버전(2부터 시작, 같은 날 재수정 시 +1)으로 갱신할 것.
-    const LAST_EDIT = { date: "2026-09-04", version: 2 };
+    const LAST_EDIT = { date: "2026-09-04", version: 3 };
 
     function renderVersionBadge() {
       const today = new Date();
@@ -578,6 +588,7 @@
     const winBtn = $("winBtn");
     const tieBtn = $("tieBtn");
     const lossBtn = $("lossBtn");
+    const super6Btn = $("super6Btn");
     const gameOverBtn = $("gameOverBtn");
     const summaryText = $("summaryText");
     const gameSummaryText = $("gameSummaryText");
@@ -700,6 +711,7 @@
       winBtn.disabled = !enabled;
       tieBtn.disabled = !enabled;
       lossBtn.disabled = !enabled;
+      super6Btn.disabled = !enabled;
     }
 
     function showPage(page) {
@@ -712,6 +724,7 @@
       winBtn.classList.toggle("hidden", visible);
       tieBtn.classList.toggle("hidden", visible);
       lossBtn.classList.toggle("hidden", visible);
+      super6Btn.classList.toggle("hidden", visible);
     }
 
     function updateStatus() {
@@ -738,7 +751,7 @@
         <div class="history-item">
           <div class="history-top">
             <div class="history-round">${item.round}판 · ${item.martinRound}마틴</div>
-            <div class="history-status ${item.result === "승리" ? "win" : item.result === "TIE" ? "tie" : "loss"}">${item.result}</div>
+            <div class="history-status ${item.result === "승리" ? "win" : item.result === "TIE" ? "tie" : item.result === "SUPER6" ? "super6" : "loss"}">${item.result}</div>
           </div>
           <div class="history-grid">
             <div>타겟: <strong class="${item.side === "플레이어" ? "player" : "banker"}">${item.side}</strong></div>
@@ -844,13 +857,13 @@
       let delta = 0;
       if (result === "승리") {
         delta = state.currentBet;
-        state.totalProfit += delta;
-        state.currentAmount += delta;
+      } else if (result === "SUPER6") {
+        delta = Math.round(state.currentBet * 0.5);
       } else {
         delta = -state.currentBet;
-        state.totalProfit += delta;
-        state.currentAmount += delta;
       }
+      state.totalProfit += delta;
+      state.currentAmount += delta;
 
       state.history.unshift({
         round: state.roundNumber,
@@ -863,9 +876,12 @@
       });
       renderHistory();
 
-      if (result === "승리") {
-        summaryText.textContent = `${state.roundNumber}판 승리 처리 완료. 다음 판은 1마틴으로 다시 시작합니다.`;
-        gameSummaryText.textContent = `${state.roundNumber}판 승리 처리 완료. 다음 판은 1마틴으로 다시 시작합니다.`;
+      if (result === "승리" || result === "SUPER6") {
+        const winMsg = result === "SUPER6"
+          ? `${state.roundNumber}판 SUPER6 처리 완료 (배팅금액의 50% 수익). 다음 판은 1마틴으로 다시 시작합니다.`
+          : `${state.roundNumber}판 승리 처리 완료. 다음 판은 1마틴으로 다시 시작합니다.`;
+        summaryText.textContent = winMsg;
+        gameSummaryText.textContent = winMsg;
         state.currentMartinRound = 1;
       } else if (state.currentMartinRound >= state.martinLimit) {
         finishGame(`진행 종료. ${state.martinLimit}마틴까지 모두 패배했습니다.`, true);
@@ -967,6 +983,7 @@
     winBtn.addEventListener("click", () => recordRound("승리"));
     tieBtn.addEventListener("click", () => recordRound("TIE"));
     lossBtn.addEventListener("click", () => recordRound("패배"));
+    super6Btn.addEventListener("click", () => recordRound("SUPER6"));
     gameOverBtn.addEventListener("click", resetGame);
 
     startAmountInput.addEventListener("input", () => {
